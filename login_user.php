@@ -4,7 +4,7 @@ include 'db.php';
 
 $error = '';
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['username'])) {
     $username_or_email = mysqli_real_escape_string($conn, $_POST['username']);
     $password = $_POST['password'];
 
@@ -52,7 +52,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <title>Đăng nhập - Miền Tây Travel</title>
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons (Thư viện icon con mắt chuẩn) -->
+    <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -61,8 +61,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             display: flex;
             align-items: center;
             justify-content: center;
-            height: 100vh;
+            min-height: 100vh;
             font-family: 'Lexend', sans-serif;
+            padding: 20px;
         }
         .login-card {
             background: #fff;
@@ -99,7 +100,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             position: relative;
         }
         .password-container .form-control {
-            padding-right: 45px; /* Tạo khoảng trống bên phải để chữ không bị đè lên icon */
+            padding-right: 45px;
         }
         #togglePassword {
             position: absolute;
@@ -125,6 +126,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <div class="alert alert-danger py-2 small text-center fw-bold"><?php echo $error; ?></div>
     <?php endif; ?>
 
+    <!-- FORM ĐĂNG NHẬP THƯỜNG -->
     <form method="POST" action="">
         <div class="mb-3">
             <label class="form-label small fw-bold">Tên đăng nhập hoặc gmail</label>
@@ -133,7 +135,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         <div class="mb-3">
             <label class="form-label small fw-bold">Mật khẩu</label>
-            <!-- Khung chứa ô input và icon con mắt chìm bên trong -->
             <div class="password-container">
                 <input type="password" name="password" id="passwordInput" class="form-control" required>
                 <i class="bi bi-eye-slash" id="togglePassword" title="Hiện/Ẩn mật khẩu"></i>
@@ -146,27 +147,65 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </div>
 
         <button type="submit" class="btn btn-primary-custom w-100 rounded-pill mb-3 text-white">ĐĂNG NHẬP</button>
-        
-        <div class="text-center small">
-            Chưa có tài khoản? <a href="register.php" class="text-primary-custom text-decoration-none fw-bold">Đăng ký ngay</a>
-        </div>
     </form>
+
+    <!-- ĐƯỜNG KẺ NGANG -->
+    <div class="d-flex align-items-center my-3">
+        <hr class="flex-grow-1">
+        <span class="px-3 text-muted small">Hoặc đăng nhập bằng</span>
+        <hr class="flex-grow-1">
+    </div>
+
+    <!-- KHU VỰC NÚT ĐĂNG NHẬP GOOGLE -->
+    <div class="d-flex justify-content-center mb-3">
+        <div id="g_id_onload"
+             data-client_id="309156140127-3q48ipe4b089jtt06nockp76jhj8859n.apps.googleusercontent.com"
+             data-context="signin"
+             data-ux_mode="popup"
+             data-callback="handleGoogleLogin"
+             data-auto_prompt="false">
+        </div>
+        <div class="g_id_signin"
+             data-type="standard"
+             data-shape="pill"
+             data-theme="outline"
+             data-text="signin_with"
+             data-size="large"
+             data-logo_alignment="left">
+        </div>
+    </div>
+
+    <!-- FORM ẨN ĐỂ CHUYỂN DỮ LIỆU GOOGLE VỀ PHP -->
+    <form id="google-login-form" action="google_login_handler.php" method="POST" style="display: none;">
+        <input type="hidden" name="credential" id="google-credential">
+    </form>
+
+    <div class="text-center small mt-4">
+        Chưa có tài khoản? <a href="register.php" class="text-primary-custom text-decoration-none fw-bold">Đăng ký ngay</a>
+    </div>
 </div>
 
-<!-- Script xử lý ẩn/hiện icon con mắt -->
+<!-- Thư viện API của Google -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<!-- Script xử lý chức năng -->
 <script>
+    // Xử lý icon con mắt
     const togglePassword = document.querySelector('#togglePassword');
     const passwordInput = document.querySelector('#passwordInput');
 
     togglePassword.addEventListener('click', function () {
-        // Đổi loại input giữa password và text
         const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
         passwordInput.setAttribute('type', type);
-        
-        // Đổi icon con mắt mở/đóng tương ứng của Bootstrap Icons
         this.classList.toggle('bi-eye');
         this.classList.toggle('bi-eye-slash');
     });
+
+    // Hàm đón dữ liệu khi khách chọn tài khoản Google xong
+    function handleGoogleLogin(response) {
+        document.getElementById('google-credential').value = response.credential;
+        document.getElementById('google-login-form').submit(); // Tự động submit qua file google_login_handler.php
+    }
 </script>
 
 </body>

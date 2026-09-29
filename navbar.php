@@ -25,15 +25,19 @@
                     <a class="nav-link px-3 text-white" href="my_bookings.php">
                         <i class="bi bi-bag-check me-1"></i>Đơn hàng
                     </a>
-                    <span class="nav-user-name ms-2 text-white">
-                        <i class="bi bi-person-circle me-1"></i><?php echo $_SESSION['user_name'] ?? ''; ?>
+                    
+                    <!-- ĐÃ SỬA THÀNH $_SESSION['user'] VÀ CHỈNH LẠI GIAO DIỆN CHỖ NÀY -->
+                    <span class="nav-link text-white fw-bold px-2">
+                        <i class="bi bi-person-circle me-1"></i>Chào, <?php echo $_SESSION['user'] ?? ''; ?>
                     </span>
-                    <a class="nav-link text-warning ms-2 fw-bold" href="logout.php">Thoát</a>
+                    
+                    <a class="nav-link text-warning ms-2 fw-bold" href="logout.php">
+                        <i class="bi bi-box-arrow-right me-1"></i>Thoát
+                    </a>
                 <?php else: ?>
                     <a class="nav-link px-3 text-white" href="login_user.php">Đăng nhập</a>
                     <a class="nav-link px-3 text-white border border-white rounded-pill ms-2" href="register.php">Đăng ký</a>
                 <?php endif; ?>
-                
                 
             </div>
         </div>
@@ -41,7 +45,6 @@
 </nav>
 
 <style>
-    
     .navbar-nav .nav-link {
         transition: 0.3s;
         font-weight: 500;
@@ -51,7 +54,6 @@
         opacity: 0.8;
         transform: translateY(-2px);
     }
-    
     .navbar-nav .nav-link.active {
         font-weight: 700 !important;
         opacity: 1;
