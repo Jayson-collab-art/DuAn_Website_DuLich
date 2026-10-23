@@ -1,4 +1,4 @@
-<?php 
+﻿<?php 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -12,37 +12,48 @@ include 'db.php';
 
 // THÊM DANH MỤC
 if(isset($_POST['btnAddCat'])) {
-    // Cắt khoảng trắng dư thừa và chống SQL Injection
-    $cat_name = mysqli_real_escape_string($conn, trim($_POST['cat_name']));
+    $cat_name = trim($_POST['cat_name'] ?? '');
     
     if(!empty($cat_name)) {
-        // Kiểm tra xem danh mục đã tồn tại chưa để tránh trùng lặp
-        $check = mysqli_query($conn, "SELECT * FROM Categories WHERE CategoryName = '$cat_name'");
-        if (mysqli_num_rows($check) > 0) {
+        $stmt_chk = mysqli_prepare($conn, "SELECT CategoryID FROM Categories WHERE CategoryName = ?");
+        mysqli_stmt_bind_param($stmt_chk, "s", $cat_name);
+        mysqli_stmt_execute($stmt_chk);
+        $res_chk = mysqli_stmt_get_result($stmt_chk);
+        
+        if (mysqli_num_rows($res_chk) > 0) {
             echo "<script>alert('Danh mục này đã tồn tại!');</script>";
         } else {
-            $sql = "INSERT INTO Categories (CategoryName) VALUES ('$cat_name')";
-            if(mysqli_query($conn, $sql)) {
-                echo "<script>alert('Đã thêm danh mục: $cat_name'); window.location.href='admin_categories.php';</script>";
+            $stmt_ins = mysqli_prepare($conn, "INSERT INTO Categories (CategoryName) VALUES (?)");
+            mysqli_stmt_bind_param($stmt_ins, "s", $cat_name);
+            if(mysqli_stmt_execute($stmt_ins)) {
+                echo "<script>alert('Đã thêm danh mục: " . htmlspecialchars($cat_name, ENT_QUOTES, 'UTF-8') . "'); window.location.href='admin_categories.php';</script>";
             }
+            mysqli_stmt_close($stmt_ins);
         }
+        mysqli_stmt_close($stmt_chk);
     }
 }
 
-// XÓA DANH MỤC (Đã vá lỗ hổng SQL Injection)
+// XÓA DANH MỤC (Prepared Statement)
 if(isset($_GET['delete_id'])) {
-    // BẮT BUỘC dùng intval() để ép biến $id từ URL thành số nguyên
     $id = intval($_GET['delete_id']);
     
-    // Kiểm tra xem có tour nào đang dùng danh mục này không (Ràng buộc khóa ngoại)
-    $check_tours = mysqli_query($conn, "SELECT * FROM Tours WHERE CategoryID = $id");
-    if (mysqli_num_rows($check_tours) > 0) {
+    $stmt_tour = mysqli_prepare($conn, "SELECT TourID FROM Tours WHERE CategoryID = ? LIMIT 1");
+    mysqli_stmt_bind_param($stmt_tour, "i", $id);
+    mysqli_stmt_execute($stmt_tour);
+    $res_tour = mysqli_stmt_get_result($stmt_tour);
+    
+    if (mysqli_num_rows($res_tour) > 0) {
         echo "<script>alert('KHÔNG THỂ XÓA! Đang có Tour thuộc danh mục này. Hãy xóa Tour trước.'); window.location.href='admin_categories.php';</script>";
     } else {
-        mysqli_query($conn, "DELETE FROM Categories WHERE CategoryID = $id");
+        $stmt_del = mysqli_prepare($conn, "DELETE FROM Categories WHERE CategoryID = ?");
+        mysqli_stmt_bind_param($stmt_del, "i", $id);
+        mysqli_stmt_execute($stmt_del);
+        mysqli_stmt_close($stmt_del);
         header("Location: admin_categories.php");
         exit();
     }
+    mysqli_stmt_close($stmt_tour);
 }
 ?>
 
@@ -52,6 +63,8 @@ if(isset($_GET['delete_id'])) {
     <meta charset="UTF-8">
     <title>Quản lý danh mục - Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
         body { background-color: #f0f2f5; font-family: 'Segoe UI', sans-serif; }

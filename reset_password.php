@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 session_start();
 include 'db.php';
 
@@ -7,27 +7,29 @@ $valid_token = false;
 
 // Kiểm tra token từ URL
 if (isset($_GET['token'])) {
-    $token = mysqli_real_escape_string($conn, $_GET['token']);
+    $token = trim($_GET['token'] ?? '');
     
-    // Tìm user có token này và chưa hết hạn
     $current_time = date("Y-m-d H:i:s");
-    $sql = "SELECT * FROM Users WHERE reset_token = '$token' AND reset_expires >= '$current_time'";
-    $result = mysqli_query($conn, $sql);
+    $stmt_tok = mysqli_prepare($conn, "SELECT * FROM Users WHERE reset_token = ? AND reset_expires >= ?");
+    mysqli_stmt_bind_param($stmt_tok, "ss", $token, $current_time);
+    mysqli_stmt_execute($stmt_tok);
+    $result = mysqli_stmt_get_result($stmt_tok);
     
     if (mysqli_num_rows($result) > 0) {
         $valid_token = true;
+        mysqli_stmt_close($stmt_tok);
         
-        // Nếu submit mật khẩu mới
         if (isset($_POST['btnReset'])) {
-            $new_pass = $_POST['new_password'];
-            $confirm_pass = $_POST['confirm_password'];
+            $new_pass = $_POST['new_password'] ?? '';
+            $confirm_pass = $_POST['confirm_password'] ?? '';
             
-            if ($new_pass === $confirm_pass) {
-                // Mã hóa mật khẩu (Lưu ý: Nếu trang Đăng ký của Sơn dùng MD5 thì để nguyên, nếu dùng password_hash thì đổi lại hàm)
+            if (!empty($new_pass) && $new_pass === $confirm_pass) {
                 $hashed_password = password_hash($new_pass, PASSWORD_DEFAULT); 
                 
-                // Cập nhật pass mới, đồng thời xóa token đi để không dùng lại được
-                mysqli_query($conn, "UPDATE Users SET Password='$hashed_password', reset_token=NULL, reset_expires=NULL WHERE reset_token='$token'");
+                $stmt_up = mysqli_prepare($conn, "UPDATE Users SET Password = ?, reset_token = NULL, reset_expires = NULL WHERE reset_token = ?");
+                mysqli_stmt_bind_param($stmt_up, "ss", $hashed_password, $token);
+                mysqli_stmt_execute($stmt_up);
+                mysqli_stmt_close($stmt_up);
                 
                 $msg = "<div class='alert alert-success'>Đổi mật khẩu thành công! Đang chuyển hướng...</div>";
                 echo "<script>setTimeout(function(){ window.location.href = 'login_user.php'; }, 3000);</script>";
@@ -50,13 +52,15 @@ if (isset($_GET['token'])) {
     <meta charset="UTF-8">
     <title>Đặt Lại Mật Khẩu - Miền Tây Travel</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>body { font-family: 'Lexend', sans-serif; background-color: #f4f7f6; }</style>
 </head>
 <body class="d-flex align-items-center justify-content-center vh-100">
     <div class="card shadow-lg border-0 rounded-4 p-4" style="max-width: 400px; width: 100%;">
         <div class="text-center mb-4">
-            <h4 class="fw-bold mt-2" style="color: #082b5f;">Tạo Mật Khẩu Mới</h4>
+            <h4 class="fw-bold mt-2" style="color: #00284D;">Tạo Mật Khẩu Mới</h4>
         </div>
         <?php echo $msg; ?>
         

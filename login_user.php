@@ -4,44 +4,80 @@ include 'db.php';
 
 $error = '';
 
+
+if (empty($_SESSION['google_login_csrf'])) {
+    $_SESSION['google_login_csrf'] = bin2hex(random_bytes(32));
+}
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['username'])) {
-    $username_or_email = mysqli_real_escape_string($conn, $_POST['username']);
+    $username_or_email = trim($_POST['username']);
     $password = $_POST['password'];
 
-    $sql = "SELECT * FROM Users WHERE Username='$username_or_email' OR Email='$username_or_email'";
-    $result = mysqli_query($conn, $sql);
+    // SỬ DỤNG PREPARED STATEMENT ĐỂ CHỐNG SQL INJECTION
+    $sql = "SELECT * FROM Users WHERE Username = ? OR Email = ? LIMIT 1";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmt, "ss", $username_or_email, $username_or_email);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
 
     if ($row = mysqli_fetch_assoc($result)) {
-        $lock_until = $row['LockUntil'];
+        $has_lock_column = array_key_exists('LockUntil', $row);
+        $lock_until = $has_lock_column ? $row['LockUntil'] : null;
         
         if ($lock_until && strtotime($lock_until) > time()) {
             $remaining_minutes = ceil((strtotime($lock_until) - time()) / 60);
             $error = "Tài khoản đang bị khóa do nhập sai quá 5 lần. Vui lòng thử lại sau $remaining_minutes phút!";
         } else {
             if (password_verify($password, $row['Password'])) {
-                mysqli_query($conn, "UPDATE Users SET FailedAttempts = 0, LockUntil = NULL WHERE UserID = " . $row['UserID']);
+                if ($has_lock_column) {
+                    $stmt_reset = mysqli_prepare($conn, "UPDATE Users SET FailedAttempts = 0, LockUntil = NULL WHERE UserID = ?");
+                    mysqli_stmt_bind_param($stmt_reset, "i", $row['UserID']);
+                    mysqli_stmt_execute($stmt_reset);
+                    mysqli_stmt_close($stmt_reset);
+                }
+                
+                // Tái tạo session ID chống Session Fixation
+                session_regenerate_id(true);
                 
                 $_SESSION['user'] = $row['Username'];
-                $_SESSION['user_id'] = $row['UserID'];
-                header("Location: index.php");
+                $_SESSION['user_id'] = (int)$row['UserID'];
+                $_SESSION['user_name'] = !empty($row['FullName']) ? $row['FullName'] : $row['Username'];
+                
+                // Hỗ trợ redirect sau đăng nhập (ví dụ: từ trang đặt tour)
+                $redirect = isset($_GET['redirect']) ? $_GET['redirect'] : 'index.php';
+                // Chỉ cho phép redirect nội bộ (chống Open Redirect)
+                if (!preg_match('/^[a-zA-Z0-9_\-]+\.php/', $redirect)) {
+                    $redirect = 'index.php';
+                }
+                header("Location: " . $redirect);
                 exit();
             } else {
-                $attempts = $row['FailedAttempts'] + 1;
-                
-                if ($attempts >= 5) {
-                    $lock_time = date('Y-m-d H:i:s', time() + 600);
-                    mysqli_query($conn, "UPDATE Users SET FailedAttempts = $attempts, LockUntil = '$lock_time' WHERE UserID = " . $row['UserID']);
-                    $error = "Bạn đã nhập sai 5 lần liên tiếp. Tài khoản đã bị khóa trong 10 phút!";
+                if ($has_lock_column && array_key_exists('FailedAttempts', $row)) {
+                    $attempts = (int)$row['FailedAttempts'] + 1;
+                    $uid = (int)$row['UserID'];
+                    if ($attempts >= 5) {
+                        $lock_time = date('Y-m-d H:i:s', time() + 600);
+                        $stmt_lock = mysqli_prepare($conn, "UPDATE Users SET FailedAttempts = ?, LockUntil = ? WHERE UserID = ?");
+                        mysqli_stmt_bind_param($stmt_lock, "isi", $attempts, $lock_time, $uid);
+                        mysqli_stmt_execute($stmt_lock);
+                        mysqli_stmt_close($stmt_lock);
+                        $error = "Bạn đã nhập sai 5 lần liên tiếp. Tài khoản đã bị khóa trong 10 phút!";
+                    } else {
+                        $stmt_fail = mysqli_prepare($conn, "UPDATE Users SET FailedAttempts = ? WHERE UserID = ?");
+                        mysqli_stmt_bind_param($stmt_fail, "ii", $attempts, $uid);
+                        mysqli_stmt_execute($stmt_fail);
+                        mysqli_stmt_close($stmt_fail);
+                        $remaining_turns = 5 - $attempts;
+                        $error = "Mật khẩu không chính xác! Bạn còn $remaining_turns lần thử trước khi bị khóa.";
+                    }
                 } else {
-                    mysqli_query($conn, "UPDATE Users SET FailedAttempts = $attempts WHERE UserID = " . $row['UserID']);
-                    $remaining_turns = 5 - $attempts;
-                    $error = "Mật khẩu không chính xác! Bạn còn $remaining_turns lần thử trước khi bị khóa.";
+                    $error = "Mật khẩu không chính xác!";
                 }
             }
         }
     } else {
         $error = "Tên đăng nhập hoặc Email không tồn tại!";
     }
+    mysqli_stmt_close($stmt);
 }
 ?>
 

@@ -49,7 +49,7 @@ if (!empty($search)) {
 $limit = 10; // Hiển thị 10 tour 1 trang
 $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
 if ($page < 1) $page = 1;
-$offset = ($page - 1) * $limit;
+$offset = ($page - 1) * $limit; // Đã khôi phục dấu trừ bị mất
 
 $sql_count = "SELECT COUNT(*) as total FROM Tours WHERE $condition";
 $res_count = mysqli_query($conn, $sql_count);
@@ -65,20 +65,14 @@ $total_pages = ceil($total_records / $limit);
     <title>Quản lý Sản phẩm - Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
     <style>
-        body { background-color: #f8f9fa; font-family: 'Segoe UI', sans-serif; }
-        .tour-img-admin { width: 120px; height: 75px; object-fit: cover; border-radius: 8px; border: 1px solid #ddd; }
-        .table-container { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
-        .navbar-dark { background-color: #212529 !important; }
-        .table thead { background-color: #f1f3f5; }
-        .btn-action { border-radius: 8px; transition: 0.2s; }
-        
-        /* Hiệu ứng nhấp nháy cho badge hết hạn */
-        @keyframes flash {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
+        .tour-img-admin { width: 110px; height: 70px; object-fit: cover; border-radius: 6px; border: 1px solid #E2E8F0; }
+        .table-container { background: #fff; border-radius: 24px; padding: 1.75rem; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border: 1px solid #E2E8F0; }
+        .table thead th { background: #F1F5F9 !important; color: #1E293B; font-weight: 700; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #E2E8F0 !important; }
+        .table tbody tr:hover { background: #F8FAFC; }
+        @keyframes flash { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
         .badge-expired { animation: flash 2s infinite; }
     </style>
 </head>
@@ -119,8 +113,8 @@ $total_pages = ceil($total_records / $limit);
                             <th>STT</th> 
                             <th>Hình ảnh</th>
                             <th width="30%">Tên Tour</th>
-                            <th>Giá Tiền</th>
-                            <th width="25%">Thông tin khởi hành</th>
+                            <th>Giá Tiền & Loại Hình</th>
+                            <th width="25%">Thông tin khởi hành & Dịch vụ</th>
                             <th class="text-center">Thao tác</th>
                         </tr>
                     </thead>
@@ -153,12 +147,25 @@ $total_pages = ceil($total_records / $limit);
                                     </td>
                                     <td>
                                         <div class="fw-bold text-dark"><?php echo htmlspecialchars($row['TourName']); ?></div>
+                                        <div class="mt-1">
+                                            <span class="badge bg-light text-dark border shadow-sm">
+                                                <i class="bi bi-geo-fill text-danger"></i> Nơi đến: <?php echo (!empty($row['Destination'])) ? htmlspecialchars($row['Destination']) : "Chưa cập nhật"; ?>
+                                            </span>
+                                        </div>
                                         <?php if ($is_expired): ?>
                                             <span class="badge bg-danger mt-1 badge-expired"><i class="bi bi-exclamation-triangle-fill"></i> Đã hết hạn</span>
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <span class="text-danger fw-bold"><?php echo number_format($row['Price']); ?>đ</span>
+                                        <div class="text-danger fw-bold fs-6"><?php echo number_format($row['Price']); ?>đ</div>
+                                        <!-- NHÃN HIỂN THỊ LOẠI HÌNH TOUR TRONG ADMIN -->
+                                        <div class="mt-1">
+                                            <?php if(isset($row['IsFullPackage']) && $row['IsFullPackage'] == 0): ?>
+                                                <span class="badge bg-warning text-dark"><i class="bi bi-person-walking"></i> Tour tự túc</span>
+                                            <?php else: ?>
+                                                <span class="badge bg-success"><i class="bi bi-box-seam"></i> Tour trọn gói</span>
+                                            <?php endif; ?>
+                                        </div>
                                     </td>
                                     
                                     <!-- Làm mờ cột thông tin nếu đã hết hạn -->
@@ -170,9 +177,14 @@ $total_pages = ceil($total_records / $limit);
                                             <i class="bi bi-calendar-event"></i> 
                                             <?php echo (!empty($row['DepartureSchedule'])) ? htmlspecialchars($row['DepartureSchedule']) : "Theo yêu cầu"; ?>
                                         </div>
+                                        <div class="small text-secondary mb-1">
+                                            <i class="bi bi-geo-alt"></i> Xuất phát: <?php echo (!empty($row['DepartureLocation'])) ? htmlspecialchars($row['DepartureLocation']) : "Chưa cập nhật"; ?>
+                                        </div>
+                                        <div class="small text-secondary mb-1">
+                                            <i class="bi bi-car-front-fill text-success"></i> PT: <?php echo (!empty($row['Vehicle'])) ? htmlspecialchars($row['Vehicle']) : "Chưa cập nhật"; ?>
+                                        </div>
                                         <div class="small text-secondary">
-                                            <i class="bi bi-geo-alt"></i> Nơi xuất phát: 
-                                            <?php echo (!empty($row['DepartureLocation'])) ? htmlspecialchars($row['DepartureLocation']) : "Chưa cập nhật"; ?>
+                                            <i class="bi bi-house-door-fill text-info"></i> Ở: <?php echo (!empty($row['Accommodation'])) ? htmlspecialchars($row['Accommodation']) : "Chưa cập nhật"; ?>
                                         </div>
                                     </td>
                                     
@@ -188,7 +200,7 @@ $total_pages = ceil($total_records / $limit);
                                                 <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                                                 <input type="hidden" name="action" value="delete">
                                                 <input type="hidden" name="delete_id" value="<?php echo $row['TourID']; ?>">
-                                                <button type="submit" class="btn btn-sm btn-outline-danger btn-action" title="Xóa tour" onclick="return confirm('Sơn có chắc chắn muốn xóa tour này không?');">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger btn-action" title="Xóa tour" onclick="return confirm('Bạn có chắc chắn muốn xóa tour này không?');">
                                                     <i class="bi bi-trash"></i>
                                                 </button>
                                             </form>
@@ -215,7 +227,8 @@ $total_pages = ceil($total_records / $limit);
                         ?>
                         
                         <li class="page-item <?php echo ($page <= 1) ? 'disabled' : ''; ?>">
-                            <a class="page-link" href="?page=<?php echo $page - 1 . $qs; ?>">Trước</a>
+                            <!-- Đã khôi phục dấu trừ bị mất -->
+                            <a class="page-link" href="?page=<?php echo ($page - 1) . $qs; ?>">Trước</a>
                         </li>
                         
                         <?php for($i = 1; $i <= $total_pages; $i++): ?>
@@ -225,7 +238,7 @@ $total_pages = ceil($total_records / $limit);
                         <?php endfor; ?>
                         
                         <li class="page-item <?php echo ($page >= $total_pages) ? 'disabled' : ''; ?>">
-                            <a class="page-link" href="?page=<?php echo $page + 1 . $qs; ?>">Sau</a>
+                            <a class="page-link" href="?page=<?php echo ($page + 1) . $qs; ?>">Sau</a>
                         </li>
                     </ul>
                 </nav>

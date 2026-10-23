@@ -1,0 +1,43 @@
+services:
+  # 1. Dịch vụ chạy code PHP (Thay thế Apache của XAMPP)
+  web:
+    build: .
+    container_name: web_du_lich_app
+    ports:
+      - "8080:80"
+    volumes:
+      - ./:/var/www/html
+    depends_on:
+      - db
+
+  # 2. Dịch vụ cơ sở dữ liệu MySQL (Tự động nạp file web_du_lich.sql)
+  db:
+    image: mysql:8.0
+    container_name: web_du_lich_db
+    restart: always
+    environment:
+      MYSQL_DATABASE: web_du_lich
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      command: --lower-case-table-names=1
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./web_du_lich.sql:/docker-entrypoint-initdb.d/web_du_lich.sql
+      - db_data:/var/lib/mysql
+
+  # 3. Dịch vụ phpMyAdmin để xem database giống hệt XAMPP
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: web_du_lich_pma
+    restart: always
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: db
+      PMA_USER: root
+      PMA_PASSWORD: ""
+    depends_on:
+      - db
+
+volumes:
+  db_data:

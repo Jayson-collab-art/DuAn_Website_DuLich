@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 session_start();
 include 'db.php';
 
@@ -13,22 +13,29 @@ require 'PHPMailer/SMTP.php';
 $msg = "";
 
 if (isset($_POST['btnForgot'])) {
-    $email = mysqli_real_escape_string($conn, $_POST['email']);
+    $email = trim($_POST['email'] ?? '');
     
-    // Kiểm tra email có trong DB không
-    $check_email = mysqli_query($conn, "SELECT * FROM Users WHERE Email = '$email'");
+    $stmt_email = mysqli_prepare($conn, "SELECT * FROM Users WHERE Email = ?");
+    mysqli_stmt_bind_param($stmt_email, "s", $email);
+    mysqli_stmt_execute($stmt_email);
+    $check_email = mysqli_stmt_get_result($stmt_email);
+    
     if (mysqli_num_rows($check_email) > 0) {
         $user = mysqli_fetch_assoc($check_email);
+        mysqli_stmt_close($stmt_email);
         
-        // Tạo token ngẫu nhiên và thời gian hết hạn (30 phút)
         $token = bin2hex(random_bytes(50));
         $expires = date("Y-m-d H:i:s", time() + 1800);
         
-        // Cập nhật token vào DB
-        mysqli_query($conn, "UPDATE Users SET reset_token='$token', reset_expires='$expires' WHERE Email='$email'");
+        $stmt_up = mysqli_prepare($conn, "UPDATE Users SET reset_token = ?, reset_expires = ? WHERE Email = ?");
+        mysqli_stmt_bind_param($stmt_up, "sss", $token, $expires, $email);
+        mysqli_stmt_execute($stmt_up);
+        mysqli_stmt_close($stmt_up);
         
-        // Link khôi phục mật khẩu (Sơn sửa lại tên thư mục web_du_lich cho đúng với máy bạn nhé)
-        $reset_link = "http://localhost/web_du_lich/reset_password.php?token=" . $token;
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost:8000';
+        $base = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/');
+        $reset_link = $scheme . $host . $base . "/reset_password.php?token=" . $token;
 
         // CẤU HÌNH GỬI MAIL
         $mail = new PHPMailer(true);
@@ -65,6 +72,8 @@ if (isset($_POST['btnForgot'])) {
     <meta charset="UTF-8">
     <title>Quên Mật Khẩu - Miền Tây Travel</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>body { font-family: 'Lexend', sans-serif; background-color: #f4f7f6; }</style>
 </head>
@@ -72,7 +81,7 @@ if (isset($_POST['btnForgot'])) {
     <div class="card shadow-lg border-0 rounded-4 p-4" style="max-width: 400px; width: 100%;">
         <div class="text-center mb-4">
             <img src="https://cdn-icons-png.flaticon.com/128/5968/5968879.png" width="60" alt="Logo">
-            <h4 class="fw-bold mt-2" style="color: #082b5f;">Quên Mật Khẩu</h4>
+            <h4 class="fw-bold mt-2" style="color: #00284D;">Quên Mật Khẩu</h4>
             <p class="text-muted small">Nhập email của bạn để nhận link đặt lại</p>
         </div>
         <?php echo $msg; ?>
@@ -80,7 +89,7 @@ if (isset($_POST['btnForgot'])) {
             <div class="mb-3">
                 <input type="email" name="email" class="form-control rounded-pill py-2 bg-light border-0" placeholder="Nhập Email đã đăng ký..." required>
             </div>
-            <button type="submit" name="btnForgot" class="btn btn-primary w-100 rounded-pill py-2 fw-bold" style="background-color: #082b5f;">Gửi Yêu Cầu</button>
+            <button type="submit" name="btnForgot" class="btn btn-primary w-100 rounded-pill py-2 fw-bold" style="background-color: #00284D;">Gửi Yêu Cầu</button>
         </form>
         <div class="text-center mt-3">
             <a href="login_user.php" class="text-decoration-none small text-muted">Quay lại Đăng nhập</a>
